@@ -9,6 +9,93 @@ One command installs the standard agent operating system into any project: the `
 - Determinism by default. Generated projects carry hard rules against non-deterministic agent and code behavior: injected clocks and randomness, no ambient environment or locale reads in logic, frozen lockfiles, fake timers in tests, UTC everywhere, JSON-only logging. The language addendum instantiates each rule per ecosystem.
 - Planning before implementation. Generated repos keep `PLAN.md` as an append-only decision log, newest dated entry first, and their manual makes planning the default first step for non-trivial requests.
 
+## How it fits together
+
+One pass, no loops back. `bootstrap.py` puts the repo on `sys.path` and hands `argv` to `cli.main`. The CLI parses arguments, `plan.build_plan` turns those arguments plus template bytes into a sorted list of `FileEntry` records, and `write.apply` is the only code in the project that touches the target directory. `build_plan` does no I/O on the target at all, so a dry run and a real run compute the identical plan.
+
+```mermaid
+flowchart TB
+    argv["argv"] --> parser["cli.build_parser<br/>argparse; choices gate --lang and --pack"]
+    parser --> plan["plan.build_plan<br/>pure: args + template bytes in, file list out"]
+    tmpl[("templates/")] --> plan
+    plan -. uses .-> render["render.render<br/>double-brace variable substitution, nothing else"]
+    plan --> entries["sorted list of FileEntry<br/>posix path, exact bytes, exec bit"]
+    entries --> apply["write.apply<br/>scan every path for conflicts, then write"]
+    apply --> target[("target directory")]
+    apply --> report["Report<br/>written / skipped"]
+    report --> stdout["stdout: + written, = skipped, next steps"]
+
+    parser -.-> usage["UsageError, exit 1"]
+    plan -.-> usage
+    render -.-> usage
+    apply -.-> conflict["ConflictError, exit 2<br/>nothing modified"]
+```
+
+The conflict scan is what makes a half-written tree impossible. `_find_conflicts` walks the whole plan first and raises before a single byte lands, so an existing file that differs, a symlink where a file was planned, or a directory in a file's place all abort the run intact. Files whose bytes already match are skipped, which is why a second run on a bootstrapped directory writes nothing.
+
+### Templates to outputs
+
+Every generated file traces back to a template file and, for most of them, one flag. The manual is the only assembled file. `plan.build_plan` renders the base template, then concatenates the language addendum onto it rather than nesting templates.
+
+```mermaid
+flowchart LR
+    subgraph src["templates/"]
+        t_agents["AGENTS.md.tmpl"]
+        t_add["addenda/go|typescript|python.md"]
+        t_plan["PLAN.md.tmpl"]
+        t_state["STATE.md.tmpl"]
+        t_gi["gitignore-base.tmpl"]
+        t_gil["gitignore/&lt;lang&gt;.txt"]
+        t_omp["omp/AGENTS.md.tmpl<br/>omp/RULES.md.tmpl<br/>omp/config.yml"]
+        t_skills["skills/core, /go, /typescript, /python, /web"]
+        t_ci["ci/&lt;lang&gt;.yml"]
+        t_ws["workspace-AGENTS.md.tmpl"]
+    end
+
+    t_agents --> o_agents["AGENTS.md"]
+    t_add -->|"--lang != none"| o_agents
+    t_plan --> o_plan["PLAN.md"]
+    t_state --> o_state["STATE.md"]
+    t_gi --> o_gi[".gitignore"]
+    t_gil -->|"--lang != none"| o_gi
+    t_omp -->|"unless --no-omp"| o_omp[".omp/"]
+    t_skills -->|"core + lang + --pack"| o_skills[".agents/skills/"]
+    t_ci -->|"--lang != none"| o_ci[".github/workflows/ci.yml"]
+    t_ws -->|"--workspace: this file and nothing else"| o_ws["AGENTS.md pointer"]
+```
+
+`--workspace` short-circuits the whole plan. It emits a single pointer `AGENTS.md` and skips the manual, the skills, the omp trio, and CI.
+
+### Where the skills come from
+
+Skill packs are vendored copies, not references, so a clone works on a machine where neither source is present. Sync runs one way only.
+
+```mermaid
+flowchart LR
+    tb[("~/Projects/Passive Income/toolbase<br/>.agents/skills")] -->|"tools/sync_skills.py"| vend[("templates/skills/")]
+    home[("~/.agents/skills")] -->|"tools/sync_skills.py"| vend
+    own["go-clean-code, py-clean-code<br/>authored here, no upstream"] --> vend
+    vend -->|"byte copy during build_plan"| gen[".agents/skills/ in the generated project"]
+    vend -->|"relative symlinks"| self["this repo's own .agents/skills/"]
+```
+
+The symlinks in the last edge are the reason agents working on this repo see the same thirteen core skills they install elsewhere. `sync_skills.py` compares source and destination trees before copying, reports `copied`, `unchanged`, and `missing` per skill, and exits 1 when a canonical source has moved.
+
+### How determinism is proven
+
+`tests/test_golden.py` pins seven argv scenarios. Each one runs the CLI into a temp directory, hashes the resulting tree, and compares against a committed manifest of `<sha256>  <path>` lines.
+
+```mermaid
+flowchart LR
+    scen["SCENARIOS: 7 argv sets<br/>go, typescript, python, none,<br/>typescript+web, go --no-omp, workspace"] --> run["cli.main into a temp dir"]
+    run --> hash["tree_manifest: sha256 per file, sorted by path"]
+    hash --> cmp{"matches tests/golden/&lt;scenario&gt;/manifest.txt?"}
+    cmp -->|yes| pass["pass"]
+    cmp -->|no| fail["fail: a regression,<br/>or an intended change needing<br/>tools/make_goldens.py plus a reviewed diff"]
+```
+
+A failure here means output moved. When the move was intentional, `tools/make_goldens.py` regenerates the manifests from the same `SCENARIOS` dict the test reads, and the diff goes into the PR as evidence. Hand-editing a manifest defeats the check.
+
 ## Usage
 
 ```bash
@@ -68,4 +155,18 @@ Python 3.9+, zero runtime dependencies, stdlib `unittest`:
 python3 -m unittest discover -s tests -v
 ```
 
-Layout: `bootstrap.py` (entrypoint), `agentic_setup/` (cli, plan, render, write), `templates/` (manual, addenda, skills, ci, gitignore sections), `tests/` (unit, behavior, golden manifests), `tools/` (sync_skills, make_goldens). See `AGENTS.md` for operational notes and `PLAN.md` for the decision log.
+38 tests across five files, all stdlib `unittest`. Only the entrypoint smoke test spawns a subprocess; everything else calls `agentic_setup.cli.main(argv)` in-process.
+
+| Path | Responsibility |
+|---|---|
+| `bootstrap.py` | Entrypoint. Fixes `sys.path`, calls `cli.main`, returns its exit code. |
+| `agentic_setup/cli.py` | Argument parsing and the exit contract. Turns argparse failures into `UsageError` so exit codes stay ours. |
+| `agentic_setup/plan.py` | `build_plan`, the pure core. Validates the name, language, and packs, then assembles the sorted `FileEntry` list. |
+| `agentic_setup/render.py` | Variable substitution. An unknown variable in a template is a hard error, never a silent blank. |
+| `agentic_setup/write.py` | The only module that touches the target. Conflict scan first, writes second. |
+| `agentic_setup/errors.py` | `BootstrapError`, `UsageError`, `ConflictError`, each carrying its exit code. |
+| `templates/` | Manual, addenda, skill packs, CI recipes, gitignore sections, omp trio, workspace pointer. |
+| `tests/` | Render and plan units, CLI behavior, golden manifests, sync-tool tests. |
+| `tools/` | `sync_skills.py` pulls vendored skills forward; `make_goldens.py` regenerates the manifests. |
+
+See `AGENTS.md` for operational notes and `PLAN.md` for the decision log.
