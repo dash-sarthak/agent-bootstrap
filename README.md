@@ -4,7 +4,7 @@ One command installs the standard agent operating system into any project: the `
 
 ## Philosophy
 
-- Interoperability. Generated files follow open conventions only: `AGENTS.md` (plural) at the repo root, skills under `.agents/skills/<name>/SKILL.md`. Nothing requires a specific vendor. The `.omp/` directory is additive; other agents ignore it safely.
+- Interoperability. Generated files follow open conventions only: `AGENTS.md` at the repo root, skills under `.agents/skills/<name>/SKILL.md`. Nothing requires a specific vendor. The `.omp/` directory is additive; other agents ignore it safely.
 - Predictability. The generator is a pure function of its arguments and its template files. Same inputs give byte-identical output, proven by golden manifests in CI. It never reads the clock, the user, the hostname, or the network, and it never writes a file it did not announce.
 - Determinism by default. Generated projects carry hard rules against non-deterministic agent and code behavior: injected clocks and randomness, no ambient environment or locale reads in logic, frozen lockfiles, fake timers in tests, UTC everywhere, JSON-only logging. The language addendum instantiates each rule per ecosystem.
 - Planning before implementation. Generated repos keep `PLAN.md` as an append-only decision log, newest dated entry first, and their manual makes planning the default first step for non-trivial requests.
@@ -140,8 +140,6 @@ Skill packs:
 | go | go-clean-code |
 | python | py-clean-code |
 | web | web-design, seo-optimization |
-
-Deliberately excluded: find-tool-ideas (passive-income specific), chrome-cdp (workstation-specific), political-* and entity-linking (domain-specific).
 
 ## Sources and sync
 
