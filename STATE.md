@@ -4,7 +4,7 @@ Updated at session close per AGENTS.md. Facts only; history lives in git log, ba
 
 ## Repo and location
 
-agent-bootstrap, local git repo at `~/Projects/agent-bootstrap`, branch `main`. No remote yet; commits use `gh-0` until a tracker exists. Stack: Python 3.9+ stdlib only, stdlib unittest, golden-manifest determinism tests.
+agent-bootstrap, git repo on branch `main`. No remote yet; commits use `gh-0` until a tracker exists. Stack: Python 3.9+ stdlib only, stdlib unittest, golden-manifest determinism tests.
 
 ## Last merged
 

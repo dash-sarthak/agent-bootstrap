@@ -69,7 +69,7 @@ class CliEndToEndTests(unittest.TestCase):
         self.assertEqual(cli.main(["--name", "demo", "--pack", "mobile", str(self.target())]), 1)
 
     def test_workspace_mode_writes_single_file(self):
-        code = cli.main(["--name", "hub", "--workspace", "--repo-dir", "toolbase", str(self.target())])
+        code = cli.main(["--name", "hub", "--workspace", "--repo-dir", "app", str(self.target())])
         self.assertEqual(code, 0)
         self.assertEqual([p.name for p in self.target().iterdir()], ["AGENTS.md"])
 

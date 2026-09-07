@@ -6,7 +6,7 @@ Bootstrap generator that installs the standard agent operating system into any p
 
 - Run tests: `python3 -m unittest discover -s tests -v` (stdlib only; Python 3.9+ floor, zero dependencies)
 - Regenerate golden manifests after an intentional output change: `python3 tools/make_goldens.py`, then review the diff
-- Sync vendored skills from sources: `python3 tools/sync_skills.py`, then review the diff
+- Sync vendored skills: `python3 tools/sync_skills.py --source <skills-dir>` (repeatable, or set `AGENT_SKILL_SOURCES`; defaults to `~/.agents/skills`), then review the diff
 - Smoke run: `python3 bootstrap.py /tmp/demo --name demo --lang go`
 
 ## Testing notes
@@ -17,11 +17,10 @@ Bootstrap generator that installs the standard agent operating system into any p
 
 ## Skill provenance
 
-- `templates/skills/core` — vendored from `~/Projects/Passive Income/toolbase/.agents/skills` (9 skills) and `~/.agents/skills` (4: diagnosing-bugs, resolving-merge-conflicts, research, technical-writing)
-- `templates/skills/typescript` — typescript-clean-code from toolbase
-- `templates/skills/web` — web-design and seo-optimization from toolbase
-- `templates/skills/go` and `templates/skills/python` — written here; this repo is their canonical home
-- Sync is one-way, sources to templates, via `tools/sync_skills.py`. Never edit vendored copies directly; edit the source repo and sync. Excluded on purpose: find-tool-ideas (passive-income specific), chrome-cdp (workstation-specific), political-* and entity-linking (domain-specific).
+- The core, typescript, and web packs are vendored copies of skills maintained outside this repo. Where they come from is machine configuration, not a committed path: pass `--source DIR` to `tools/sync_skills.py`, or set `AGENT_SKILL_SOURCES`. Each pack declares skill names in `PACKS`; the first source root holding a name wins.
+- `templates/skills/go` and `templates/skills/python` originate here. This repo is their canonical home and sync never writes over them.
+- Sync runs one way, sources to templates. Never edit a vendored copy directly; edit it at its source and sync, or the next sync silently reverts you.
+- A skill tied to one product, one workstation, or one subject domain does not belong in a pack. Anything shipped here has to make sense in an arbitrary project the generator bootstraps.
 - This repo's own `.agents/skills/*` are relative symlinks into `templates/skills/core`, so agents working here see the same skills they will install.
 
 ## Conventions

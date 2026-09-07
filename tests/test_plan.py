@@ -65,9 +65,9 @@ class BuildPlanTests(unittest.TestCase):
         self.assertEqual(paths, sorted(paths))
 
     def test_workspace_mode_is_single_pointer(self):
-        plan = entries_by_path(name="hub", workspace=True, repo_dir="toolbase")
+        plan = entries_by_path(name="hub", workspace=True, repo_dir="app")
         self.assertEqual(list(plan), ["AGENTS.md"])
-        self.assertIn("toolbase/AGENTS.md", plan["AGENTS.md"].content.decode())
+        self.assertIn("app/AGENTS.md", plan["AGENTS.md"].content.decode())
 
     def test_unknown_lang_is_rejected(self):
         with self.assertRaises(UsageError):

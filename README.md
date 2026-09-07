@@ -72,8 +72,8 @@ Skill packs are vendored copies, not references, so a clone works on a machine w
 
 ```mermaid
 flowchart LR
-    tb[("~/Projects/Passive Income/toolbase<br/>.agents/skills")] -->|"tools/sync_skills.py"| vend[("templates/skills/")]
-    home[("~/.agents/skills")] -->|"tools/sync_skills.py"| vend
+    src1[("source root A<br/>e.g. ~/.agents/skills")] -->|"tools/sync_skills.py --source"| vend[("templates/skills/")]
+    src2[("source root B<br/>any other skills checkout")] -->|"first root holding the name wins"| vend
     own["go-clean-code, py-clean-code<br/>authored here, no upstream"] --> vend
     vend -->|"byte copy during build_plan"| gen[".agents/skills/ in the generated project"]
     vend -->|"relative symlinks"| self["this repo's own .agents/skills/"]
@@ -116,7 +116,7 @@ Exit codes: `0` ok, `1` usage or validation error, `2` conflict (an existing fil
 
 The target directory is created if missing. Existing files with identical planned content are skipped, which makes re-runs no-ops. The tool never runs `git init`, never touches git state, and prints the next steps instead of performing them.
 
-`--workspace` mode writes a single `AGENTS.md` into a parent directory that holds the repo (a "workspace"), pointing agents at `toolbase`-style layout: the repo dir, mission docs, and worktrees.
+`--workspace` mode writes a single `AGENTS.md` into a parent directory that holds the repo (a "workspace"). The pointer tells agents where the code lives, which order of truth to follow, and that `wt/` holds worktrees, so an agent spawned into the parent still finds the real manual.
 
 ## What gets generated
 
@@ -143,7 +143,15 @@ Skill packs:
 
 ## Sources and sync
 
-Skills are vendored as committed copies so a clone is self-contained on any machine. Canonical sources: `~/Projects/Passive Income/toolbase/.agents/skills` and `~/.agents/skills` (plus this repo for go-clean-code and py-clean-code). Sync runs one way, sources to `templates/skills/`, via `python3 tools/sync_skills.py`; review the diff and ship it as a PR. Never edit vendored copies directly.
+Skills are vendored as committed copies, so a clone is self-contained and needs no other checkout present. The go and python packs originate here; the rest are copies of skills maintained elsewhere.
+
+Sync runs one way, source roots to `templates/skills/`. Roots are machine configuration and no path is committed:
+
+```bash
+python3 tools/sync_skills.py --source ~/.agents/skills [--source OTHER]
+```
+
+Repeat `--source` to search several roots in order, or set `AGENT_SKILL_SOURCES` to a path-separator-delimited list. With neither, the default is `~/.agents/skills`. `PACKS` in the tool declares which skill names each pack wants, and the first root holding a name wins, so a local checkout shadows a shared one by coming first. The tool exits 1 naming any skill it could not find anywhere. Review the diff and ship it as a PR. Never edit a vendored copy directly, because the next sync reverts it.
 
 ## Development
 

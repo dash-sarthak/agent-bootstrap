@@ -13,7 +13,7 @@ SCENARIOS = {
     "none_default": ["--name", "proj"],
     "typescript_web": ["--name", "proj", "--lang", "typescript", "--pack", "web"],
     "go_no_omp": ["--name", "proj", "--lang", "go", "--no-omp"],
-    "workspace": ["--name", "hub", "--workspace", "--repo-dir", "toolbase"],
+    "workspace": ["--name", "hub", "--workspace", "--repo-dir", "app"],
 }
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
