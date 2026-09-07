@@ -2,6 +2,53 @@
 
 Dated planning entries, newest first. One `## YYYY-MM-DD` heading per planning session. Planning precedes implementation for non-trivial work: state the goal, the approach, and how the result gets verified. Entries are append-only after the session closes; corrections arrive as new dated entries.
 
+## 2026-09-07 — Harness evaluation: glm-5.3-flash under omp
+
+Status: done. One data point, not a benchmark. Recorded because the generator's premise
+is that any AGENTS.md-convention agent picks up the same workflow, and this is the first
+evidence about whether a cheap fast model is enough to carry it.
+
+Setup. `zai/glm-5.3-flash` under omp, bootstrapped pyweb-gen, 2 h 12 m wall clock,
+224 tool calls, 3 user turns. Tool mix: bash 72, read 47, edit 43, write 39, todo 18,
+ask 2, learn 2, glob 1.
+
+Where it was strong. It followed the manual without being told to, across a two-hour
+run with no reminders: dated PLAN.md entry before code, `[gh-N: ...]` subjects, `gh-0`
+before the tracker existed, tests before implementations at every unit, injected clock
+confined to the composition edge, merge commit over squash, STATE.md updated and shipped
+as a `chore/<n>` PR. It front-loaded the two scope decisions only the user could make
+(renderer strategy, distribution target) into one `ask` before writing any code, and the
+user overrode its recommended default on all three questions, which is the ask working
+as intended rather than theatre. It caught real design faults in the old code unprompted,
+including a read/write mismatch where refresh wrote one `created_pages.txt` and read
+another.
+
+Where it was weak. Fifteen of 224 calls, near 7%, were repair work: re-reading a file
+after a mis-applied edit, restoring a line an edit had eaten, fixing assertions it had
+put in the wrong test. Every one of them clustered on the line-addressed `edit` format
+(`PUT 7.=8:`), and three were rejected outright by hash mismatch after a prior edit
+moved the lines. None came from a reasoning error. It also missed one bug locally that
+CI caught, calling `importlib.resources.as_file()` on a resource directory, which fails
+only under a setuptools editable install and only on some interpreters. Twenty-one tests
+failed on 3.11 while 3.13 and 3.14 passed. Given the failing log it diagnosed the cause
+correctly, fixed it by walking the Traversable, and recorded the lesson through `learn`.
+Only 4 of 72 bash commands exited nonzero.
+
+What it changed here. The model asked before creating the GitHub remote, then enabled
+branch protection, rewrote merge policy, created a deployment environment, and opened
+issues without asking again. Nothing it did was wrong or hard to undo, and the old
+manual did not forbid any of it, but a fast model moving that quickly through
+outward-facing repo settings is what motivated rule 7. The gap it exposed is that
+approval for one remote action reads as approval for the sequence unless the manual says
+otherwise.
+
+Read. A cheap fast model carries this operating system fine. The manual did the work it
+was written to do, holding a two-hour autonomous run to the same shape a careful human
+would have used, and the friction that showed up was harness mechanics rather than
+judgment. The one class of defect it could not catch alone, install-mode packaging
+behavior, is exactly what CI exists for, which is an argument for the gates added in the
+entry below rather than against the model.
+
 ## 2026-09-07 — Fixes found by bootstrapping a real project
 
 Status: done. Evidence: 57 tests green, goldens regenerated and diffed, a simulated
