@@ -3,8 +3,9 @@
 ### Commands
 
 - Test: `python3 -m pytest` — one module: `python3 -m pytest tests/test_<name>.py`
-- Lint and format: `ruff check .` and `ruff format .` (dev dependency, pinned in `requirements-dev.txt`)
-- Environments: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt`. Both requirements files are committed and pinned.
+- Lint and format: `ruff check .` and `ruff format .`; types: `python3 -m mypy .`. CI runs all three plus `ruff format --check .`.
+- Environments: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt`. Both files ship with the bootstrap, are committed, and pin exact versions. Bump a pin in a PR of its own.
+- Packaging: a project that ships an installable package adds `python -m pip install -e .` to CI before the test step. Without it, packaging bugs only surface after release, and resource loading in particular behaves differently under an editable install than from a source checkout.
 
 ### Conventions
 

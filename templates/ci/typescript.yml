@@ -18,3 +18,18 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:coverage
+
+  # Branch protection requires a context name, and matrix legs register as
+  # "build-test (22)" rather than "build-test". Require this job instead: the
+  # name stays "ci" whatever the build-test job grows into.
+  ci:
+    needs: build-test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every build-test leg passed
+        run: |
+          if [ "${{ needs.build-test.result }}" != "success" ]; then
+            echo "build-test result: ${{ needs.build-test.result }}"
+            exit 1
+          fi

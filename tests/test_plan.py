@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from agentic_setup.errors import UsageError
-from agentic_setup.plan import build_plan
+from agentic_setup.plan import MERGE, OWN, SEED, build_plan
 
 REPO = Path(__file__).resolve().parent.parent
 TEMPLATES = REPO / "templates"
@@ -68,6 +68,22 @@ class BuildPlanTests(unittest.TestCase):
         plan = entries_by_path(name="hub", workspace=True, repo_dir="app")
         self.assertEqual(list(plan), ["AGENTS.md"])
         self.assertIn("app/AGENTS.md", plan["AGENTS.md"].content.decode())
+
+    def test_gitignore_is_a_merge_target(self):
+        plan = entries_by_path(name="demo", lang="python")
+        self.assertEqual(plan[".gitignore"].disposition, MERGE)
+
+    def test_requirements_are_seeded_only_for_python(self):
+        python = entries_by_path(name="demo", lang="python")
+        self.assertEqual(python["requirements.txt"].disposition, SEED)
+        self.assertEqual(python["requirements-dev.txt"].disposition, SEED)
+        go = entries_by_path(name="demo", lang="go")
+        self.assertNotIn("requirements-dev.txt", go)
+
+    def test_manual_and_skills_stay_owned(self):
+        plan = entries_by_path(name="demo", lang="python")
+        self.assertEqual(plan["AGENTS.md"].disposition, OWN)
+        self.assertEqual(plan[".agents/skills/tdd/SKILL.md"].disposition, OWN)
 
     def test_unknown_lang_is_rejected(self):
         with self.assertRaises(UsageError):

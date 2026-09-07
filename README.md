@@ -33,6 +33,16 @@ flowchart TB
 
 The conflict scan is what makes a half-written tree impossible. `_find_conflicts` walks the whole plan first and raises before a single byte lands, so an existing file that differs, a symlink where a file was planned, or a directory in a file's place all abort the run intact. Files whose bytes already match are skipped, which is why a second run on a bootstrapped directory writes nothing.
 
+Not every planned file is owned outright. Each `FileEntry` carries a disposition, and it decides what an existing file at that path means:
+
+| Disposition | Files | Existing file with different content |
+|---|---|---|
+| `OWN` (default) | manual, plan, state, skills, CI, omp trio | Conflict. Exit 2, nothing modified. |
+| `MERGE` | `.gitignore` | Appended to: planned entries the file lacks are added under one `# Added by agent-bootstrap` header, in planned order. |
+| `SEED` | `requirements.txt`, `requirements-dev.txt` | Left alone. The file is a starting point, not a contract. |
+
+`MERGE` exists because every real repository already has a `.gitignore`, so owning it outright made the tool exit 2 on precisely the projects it was built for. The merge compares stripped, non-comment lines, which keeps it idempotent: once the planned entries are present, a re-run appends nothing. Symlinks and directories still conflict for all three dispositions, since neither can be written through safely.
+
 ### Templates to outputs
 
 Every generated file traces back to a template file and, for most of them, one flag. The manual is the only assembled file. `plan.build_plan` renders the base template, then concatenates the language addendum onto it rather than nesting templates.
@@ -46,6 +56,7 @@ flowchart LR
         t_state["STATE.md.tmpl"]
         t_gi["gitignore-base.tmpl"]
         t_gil["gitignore/&lt;lang&gt;.txt"]
+        t_req["requirements/python.txt<br/>requirements/python-dev.txt"]
         t_omp["omp/AGENTS.md.tmpl<br/>omp/RULES.md.tmpl<br/>omp/config.yml"]
         t_skills["skills/core, /go, /typescript, /python, /web"]
         t_ci["ci/&lt;lang&gt;.yml"]
@@ -56,8 +67,9 @@ flowchart LR
     t_add -->|"--lang != none"| o_agents
     t_plan --> o_plan["PLAN.md"]
     t_state --> o_state["STATE.md"]
-    t_gi --> o_gi[".gitignore"]
+    t_gi --> o_gi[".gitignore (merged)"]
     t_gil -->|"--lang != none"| o_gi
+    t_req -->|"--lang python"| o_req["requirements.txt<br/>requirements-dev.txt (seeded)"]
     t_omp -->|"unless --no-omp"| o_omp[".omp/"]
     t_skills -->|"core + lang + --pack"| o_skills[".agents/skills/"]
     t_ci -->|"--lang != none"| o_ci[".github/workflows/ci.yml"]
@@ -65,6 +77,8 @@ flowchart LR
 ```
 
 `--workspace` short-circuits the whole plan. It emits a single pointer `AGENTS.md` and skips the manual, the skills, the omp trio, and CI.
+
+Every CI recipe ends with the same aggregate job, named `ci`, that fails unless the real job succeeded. It exists so branch protection has a context name that survives change. GitHub matches required status checks against job check names, not workflow names, so a job that grows a matrix starts reporting as `test (3.12)` and the previously required `test` matches nothing. That state is worse than no protection: merges block forever while direct pushes to `main` stay open. Requiring `ci` instead holds whatever shape the test job takes.
 
 ### Where the skills come from
 
@@ -112,7 +126,7 @@ python3 bootstrap.py <target-dir> --name <project> [options]
 | `--repo-dir` | With `--workspace`: the repo directory name the pointer targets. Defaults to `--name`. |
 | `--dry-run` | Print the exact file plan, write nothing. |
 
-Exit codes: `0` ok, `1` usage or validation error, `2` conflict (an existing file differs from the planned content; nothing is modified).
+Exit codes: `0` ok, `1` usage or validation error, `2` conflict (an owned file differs from the planned content; nothing is modified).
 
 The target directory is created if missing. Existing files with identical planned content are skipped, which makes re-runs no-ops. The tool never runs `git init`, never touches git state, and prints the next steps instead of performing them.
 
@@ -125,7 +139,9 @@ The target directory is created if missing. Existing files with identical planne
 ├── AGENTS.md                  # base manual + language addendum
 ├── PLAN.md                    # append-only dated planning log
 ├── STATE.md                   # live session state scaffold
-├── .gitignore                 # base + language section
+├── .gitignore                 # base + language section, merged into an existing file
+├── requirements.txt           # --lang python only, seeded and left alone if present
+├── requirements-dev.txt       # --lang python only, pins ruff, pytest, mypy
 ├── .omp/                      # AGENTS.md pointer, RULES.md, config.yml (unless --no-omp)
 ├── .agents/skills/            # core pack + language pack + extra packs (copies, not symlinks)
 └── .github/workflows/ci.yml   # per language (skipped for --lang none)
@@ -161,7 +177,7 @@ Python 3.9+, zero runtime dependencies, stdlib `unittest`:
 python3 -m unittest discover -s tests -v
 ```
 
-38 tests across five files, all stdlib `unittest`. Only the entrypoint smoke test spawns a subprocess; everything else calls `agentic_setup.cli.main(argv)` in-process.
+57 tests across five files, all stdlib `unittest`. Only the entrypoint smoke test spawns a subprocess; everything else calls `agentic_setup.cli.main(argv)` in-process.
 
 | Path | Responsibility |
 |---|---|
@@ -171,7 +187,7 @@ python3 -m unittest discover -s tests -v
 | `agentic_setup/render.py` | Variable substitution. An unknown variable in a template is a hard error, never a silent blank. |
 | `agentic_setup/write.py` | The only module that touches the target. Conflict scan first, writes second. |
 | `agentic_setup/errors.py` | `BootstrapError`, `UsageError`, `ConflictError`, each carrying its exit code. |
-| `templates/` | Manual, addenda, skill packs, CI recipes, gitignore sections, omp trio, workspace pointer. |
+| `templates/` | Manual, addenda, skill packs, CI recipes, gitignore sections, requirements pins, omp trio, workspace pointer. |
 | `tests/` | Render and plan units, CLI behavior, golden manifests, sync-tool tests. |
 | `tools/` | `sync_skills.py` pulls vendored skills forward; `make_goldens.py` regenerates the manifests. |
 

@@ -79,6 +79,70 @@ class CliEndToEndTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue((deep / "AGENTS.md").is_file())
 
+    def test_existing_gitignore_merges_instead_of_conflicting(self):
+        target = self.target()
+        target.mkdir()
+        (target / ".gitignore").write_text("build/\nvenv/\n", encoding="utf-8")
+        code = cli.main(["--name", "demo", "--lang", "python", str(target)])
+        self.assertEqual(code, 0)
+        merged = (target / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("build/", merged)
+        self.assertIn("venv/", merged)
+        self.assertIn("__pycache__/", merged)
+        self.assertTrue(merged.startswith("build/\nvenv/\n"))
+
+    def test_gitignore_merge_is_idempotent(self):
+        target = self.target()
+        target.mkdir()
+        (target / ".gitignore").write_text("build/\n", encoding="utf-8")
+        cli.main(["--name", "demo", "--lang", "python", str(target)])
+        after_first = tree_state(target)
+        code = cli.main(["--name", "demo", "--lang", "python", str(target)])
+        self.assertEqual(code, 0)
+        self.assertEqual(tree_state(target), after_first)
+
+    def test_gitignore_merge_adds_nothing_when_already_covered(self):
+        target = self.target()
+        cli.main(["--name", "demo", "--lang", "python", str(target)])
+        generated = (target / ".gitignore").read_bytes()
+        cli.main(["--name", "demo", "--lang", "python", str(target)])
+        self.assertEqual((target / ".gitignore").read_bytes(), generated)
+
+    def test_requirements_are_seeded_for_python(self):
+        code = cli.main(["--name", "demo", "--lang", "python", str(self.target())])
+        self.assertEqual(code, 0)
+        self.assertTrue((self.target() / "requirements.txt").is_file())
+        dev = (self.target() / "requirements-dev.txt").read_text(encoding="utf-8")
+        for tool in ("ruff==", "pytest==", "mypy=="):
+            self.assertIn(tool, dev)
+
+    def test_existing_requirements_are_left_alone(self):
+        target = self.target()
+        target.mkdir()
+        (target / "requirements.txt").write_text("flask==3.0.0\n", encoding="utf-8")
+        code = cli.main(["--name", "demo", "--lang", "python", str(target)])
+        self.assertEqual(code, 0)
+        self.assertEqual((target / "requirements.txt").read_text(encoding="utf-8"), "flask==3.0.0\n")
+
+    def test_requirements_absent_for_other_languages(self):
+        cli.main(["--name", "demo", "--lang", "go", str(self.target())])
+        self.assertFalse((self.target() / "requirements-dev.txt").exists())
+
+    def test_gitignore_as_a_directory_still_conflicts(self):
+        target = self.target()
+        (target / ".gitignore").mkdir(parents=True)
+        code = cli.main(["--name", "demo", "--lang", "python", str(target)])
+        self.assertEqual(code, 2)
+        self.assertFalse((target / "AGENTS.md").exists())
+
+    def test_ci_exposes_a_stable_protection_context(self):
+        for lang in ("go", "typescript", "python"):
+            with self.subTest(lang=lang):
+                target = self.target(f"ctx-{lang}")
+                cli.main(["--name", "demo", "--lang", lang, str(target)])
+                ci = (target / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+                self.assertIn("\n  ci:\n", ci)
+
     def test_entrypoint_smoke(self):
         proc = subprocess.run(
             [sys.executable, str(REPO / "bootstrap.py"), "--help"],

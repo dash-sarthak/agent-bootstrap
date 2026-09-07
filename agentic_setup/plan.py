@@ -9,9 +9,23 @@ from .errors import UsageError
 from .render import render
 
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+# How write.apply treats an existing file at the same path.
+OWN = "own"      # the plan owns the bytes; anything different is a conflict
+MERGE = "merge"  # a list the project also edits; missing entries get appended
+SEED = "seed"    # a starting point; an existing file is left alone
+
 LANGS = ("none", "go", "typescript", "python")
 PACKS = ("web",)
 DEFAULT_TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
+
+# Dependency manifests the CI recipe installs from. Seeded so an existing project keeps its own.
+REQUIREMENTS = {
+    "python": (
+        ("requirements.txt", "requirements/python.txt"),
+        ("requirements-dev.txt", "requirements/python-dev.txt"),
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -21,6 +35,7 @@ class FileEntry:
     path: str
     content: bytes
     executable: bool = False
+    disposition: str = OWN
 
 
 def _read(templates: Path, rel: str) -> bytes:
@@ -92,7 +107,7 @@ def build_plan(
     gitignore = _read(templates, "gitignore-base.tmpl")
     if lang != "none":
         gitignore += _read(templates, f"gitignore/{lang}.txt")
-    entries.append(FileEntry(".gitignore", gitignore))
+    entries.append(FileEntry(".gitignore", gitignore, disposition=MERGE))
 
     if omp:
         for name_tmpl in ("AGENTS.md.tmpl", "RULES.md.tmpl"):
@@ -106,5 +121,7 @@ def build_plan(
 
     if lang != "none":
         entries.append(FileEntry(".github/workflows/ci.yml", _read(templates, f"ci/{lang}.yml")))
+        for out, rel in REQUIREMENTS.get(lang, ()):
+            entries.append(FileEntry(out, _read(templates, rel), disposition=SEED))
 
     return sorted(entries, key=lambda e: e.path)

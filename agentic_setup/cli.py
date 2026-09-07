@@ -56,16 +56,21 @@ def main(argv: list[str] | None = None) -> int:
         return exc.exit_code
 
     verb = "would write" if args.dry_run else "wrote"
-    print(f"{verb} {len(report.written)} file(s), skipped {len(report.skipped)} existing")
+    print(
+        f"{verb} {len(report.written)} file(s), merged {len(report.merged)}, "
+        f"skipped {len(report.skipped)} existing"
+    )
     for path in report.written:
         print(f"  + {path}")
+    for path in report.merged:
+        print(f"  ~ {path}")
     for path in report.skipped:
         print(f"  = {path}")
     if args.dry_run:
         print("dry run: nothing written")
     else:
         print(
-            "next steps: review AGENTS.md, git init if needed, "
-            "add a remote, then plan the first unit of work in PLAN.md"
+            "next steps: review AGENTS.md, git init if needed, set user.name and "
+            "user.email, then plan the first unit of work in PLAN.md"
         )
     return 0

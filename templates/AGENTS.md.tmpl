@@ -31,13 +31,15 @@ Machine-readable first, human-readable second. Any agent or human working here f
    Example: `[gh-5: add retry with injected clock to scheduler]`. `gh-0` is reserved for bootstrap commits before the tracker exists.
 4. PR body: `Closes #<n>`, what changed, and the verification evidence (test run, build output, or measured behavior). No PR without evidence.
 5. `main` is the deployment branch. It only moves through PRs with green CI. Merge commits only; squash is forbidden because it destroys the commit trail.
-6. Branch protection on `main`: required status check, pull requests required, no force pushes.
+6. Branch protection on `main` is the default once a remote exists: pull requests required, no force pushes, and `ci` as the required status check. Require the job named `ci`, never `test` or the workflow name, because protection matches job check names and a matrix leg registers as `test (3.12)`. Requiring a name no job produces blocks every merge while leaving direct pushes to `main` unblocked, so the repo looks protected and is not. A repo that does not warrant protection drops it deliberately, recorded in `PLAN.md`.
+7. Nothing reaches the remote without approval in the current session. Local commits need no approval and never wait for one. `git push`, opening a PR, merging a PR, and changing repository settings or protection each need the user to say so first, and approval covers the action asked for rather than the rest of the sequence. Force-pushing a shared branch is never in scope.
+8. Set `user.name` and `user.email` before the first commit. If git refuses with "Author identity unknown", ask the user which identity to use. Never infer one from existing history; the guess is invisible once it is in the commit trail.
 
 ## Session open / session close
 
 Open. Read `STATE.md` for live state and `PLAN.md` for the current plan, then `gh issue list --state open` for the backlog. Read this file fully before touching code.
 
-Close. Update `STATE.md` (last merged PR, in flight, open questions, next action) and ship it as a `chore/<n>` PR through the normal flow. Leave no uncommitted work.
+Close. Update `STATE.md` (last merged PR, in flight, open questions, next action) and commit it on a `chore/<n>` branch. Leave no uncommitted work. Pushing that branch and opening the PR waits for approval under rule 7.
 
 ## Tests
 

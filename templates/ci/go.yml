@@ -14,8 +14,23 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install gofumpt
-        run: go install mvdan.cc/gofumpt@latest
+        run: go install mvdan.cc/gofumpt@v0.11.0
       - name: Formatting
         run: test -z "$(gofumpt -l .)"
       - run: go vet ./...
       - run: go test ./...
+
+  # Branch protection requires a context name, and matrix legs register as
+  # "test (1.24)" rather than "test". Require this job instead: the name stays
+  # "ci" whatever the test job grows into.
+  ci:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every test leg passed
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "test result: ${{ needs.test.result }}"
+            exit 1
+          fi

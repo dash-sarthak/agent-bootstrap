@@ -25,7 +25,8 @@ Bootstrap generator that installs the standard agent operating system into any p
 
 ## Conventions
 
-- Branches: `feature/<n>`, `bug/<n>`, `chore/<n>`, `docs/<n>`. Commits: `[gh-<n>: <what changed>]`, subject only. `gh-0` is reserved for pre-tracker bootstrap work; this repo has no remote yet, so it stays on gh-0 until pushed.
-- `main` moves through PRs once a remote and branch protection exist. Until then, logical commits land directly on `main`.
+- Branches: `feature/<n>`, `bug/<n>`, `chore/<n>`, `docs/<n>`. Commits: `[gh-<n>: <what changed>]`, subject only. `gh-0` is reserved for pre-tracker bootstrap work.
+- `main` moves through PRs once branch protection exists. Until then, logical commits land directly on `main`.
+- Nothing reaches `origin` without approval in the current session. Commit locally as often as the work needs; `git push`, opening a PR, merging a PR, and changing repo settings each wait to be asked for. This is the same rule the generated manual states, and this repo follows what it ships.
 - Non-trivial work starts as a dated entry in `PLAN.md` (`## YYYY-MM-DD`, newest first) stating goal, approach, and verification. Entries are append-only after the session closes; corrections arrive as new dated entries.
 - Writing follows `unslop` (this repo ships it; see `.agents/skills/unslop`).
