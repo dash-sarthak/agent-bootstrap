@@ -1,0 +1,80 @@
+# {{PROJECT_NAME}} — operating manual
+
+Machine-readable first, human-readable second. Any agent or human working here follows this file. Skills live in `.agents/skills/<name>/SKILL.md`. Planning lives in `PLAN.md`; live state in `STATE.md`.
+
+## Map
+
+| Path | Purpose |
+|---|---|
+| `PLAN.md` | Dated planning entries, newest first. Planning happens here before implementation. |
+| `STATE.md` | Live session state, updated at session close. omp sessions get it auto-injected; every other agent reads the file. |
+| `.agents/skills/` | The skill catalog this repo ships. Core rules plus language pack. |
+| `.omp/` | Native omp context (pointer, sticky rules, memory config). Additive; other agents ignore it. |
+
+## Planning (default first step)
+
+1. Non-trivial work starts as a dated entry in `PLAN.md` (`## YYYY-MM-DD`, newest first) stating the goal, the approach, and how the result gets verified. Trivial fixes skip this.
+2. Entries are append-only once the session closes. Corrections arrive as new dated entries, never as edits to old ones.
+3. Scope only the user can decide stays a question in the entry until answered. Do not guess and do not shrink scope silently.
+4. Then implement: issue, branch, PR, main.
+
+## Workflow: issue → branch → PR → main
+
+1. Every unit of work starts as a GitHub issue. Title prefix: `feat:`, `fix:`, `test:`, `chore:`, `ci:`, `docs:`.
+2. One issue = one branch = one PR. Branch names: `feature/<n>`, `bug/<n>`, `chore/<n>`, `docs/<n>`.
+3. Commit format, subject only:
+
+   ```
+   [gh-<issue_number>: <what changed>]
+   ```
+
+   Example: `[gh-5: add retry with injected clock to scheduler]`. `gh-0` is reserved for bootstrap commits before the tracker exists.
+4. PR body: `Closes #<n>`, what changed, and the verification evidence (test run, build output, or measured behavior). No PR without evidence.
+5. `main` is the deployment branch. It only moves through PRs with green CI. Merge commits only; squash is forbidden because it destroys the commit trail.
+6. Branch protection on `main`: required status check, pull requests required, no force pushes.
+
+## Session open / session close
+
+Open. Read `STATE.md` for live state and `PLAN.md` for the current plan, then `gh issue list --state open` for the backlog. Read this file fully before touching code.
+
+Close. Update `STATE.md` (last merged PR, in flight, open questions, next action) and ship it as a `chore/<n>` PR through the normal flow. Leave no uncommitted work.
+
+## Tests
+
+- Tests assert expected behavior, never implementation details. The test name states the behavior.
+- Boundaries are mandatory (`clean-tests` skill): empty input, zero, off-by-one, invalid input, and error paths get tests, not just the happy path.
+- Tests are fast, independent, and repeatable in any environment. No network, no real clock, no real randomness.
+- Bug fixes land the failing regression test before the fix whenever a cheap test path exists; otherwise state why and use the closest executable check.
+
+## Determinism (non-negotiable)
+
+Non-determinism is the enemy of agent-maintained code. Therefore:
+
+- No wall-clock time or randomness in production logic. Inject a clock and a seeded source as parameters; default implementations live only at the composition edge.
+- All time handling is UTC. Human locales apply only at the render edge, fixed explicitly, never from ambient system locale.
+- Floating-point values are never compared with equality in tests or code; format with an explicit, fixed function first.
+- The lockfile is committed. Dependency installs are frozen. Adding a dependency is a deliberate act, never a side effect of fixing something else.
+- No ambient environment reads inside library code. Packages and modules receive configuration as parameters; only the composition root reads the environment.
+- No wall-clock sleeps in tests; use fake timers or injected clocks.
+
+## Logging
+
+- JSON only, one event per line, through the project's single logging path. Field order starts `ts`, `level`, `component`, `event`.
+- Events are `snake_case` verbs (`tool_opened`, `calculation_completed`). No PII, no free-form messages without an event name.
+- A log line must be parseable by `jq` alone. If reading it needs outside context, the event is wrong.
+
+## Code style
+
+- The clean-code catalog lives in `.agents/skills/` (`clean-general`, `clean-names`, `clean-functions`, `clean-comments`, `clean-tests`), orchestrated by `boy-scout`. Fast rules: max 3 function arguments, no flag arguments, no magic numbers, no commented-out code, comments explain why.
+- Boy Scout rule: every touched file gets one small improvement, proportionate to the task.
+- Writing in docs, PRs, and comments follows `unslop`.
+
+## Gotchas
+
+- (empty by design; agents append project-specific gotchas here as they learn them, one bullet per gotcha)
+
+## Machine-readable artifacts
+
+- Commit subjects, issue titles, and branch names parse by the regexes in this file.
+- `PLAN.md` entries start with `## YYYY-MM-DD` headings, newest first.
+- `STATE.md` uses fixed section headings: Repo and location, Last merged, In flight, Open questions for the user, Next action.

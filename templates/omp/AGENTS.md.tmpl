@@ -1,0 +1,20 @@
+# {{PROJECT_NAME}} — session context
+
+Repo: {{PROJECT_NAME}}. Live state: @../STATE.md
+
+## Order of truth
+
+1. User instruction in the current session.
+2. STATE.md, injected below (live state, updated every session close).
+3. The operating manual @../AGENTS.md: planning, workflow, commit format, tests, determinism, logging.
+4. PLAN.md for the current dated plan.
+
+Start omp sessions in this directory; the context above only loads from here.
+
+## Session open
+
+STATE.md is already injected. Then `gh issue list --state open` for the backlog. Read AGENTS.md fully before touching code.
+
+## Session close
+
+Update STATE.md and ship it as a `chore/<n>` PR per AGENTS.md. Leave no uncommitted work behind.

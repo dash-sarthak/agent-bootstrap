@@ -1,0 +1,24 @@
+# {{NAME}} workspace
+
+Workspace holding the {{REPO_DIR}} repository. Everything here is planning material or worktree storage; the code lives in the repo.
+
+## Where to work
+
+All engineering work happens in `{{REPO_DIR}}/`. Before touching any code, read `{{REPO_DIR}}/AGENTS.md` fully and follow it: planning, workflow, commit format, tests, determinism, logging.
+
+| Path | Purpose |
+|---|---|
+| `{{REPO_DIR}}/` | The repo. Start here for any code task. |
+| `wt/` | Git worktrees of the repo, one per feature branch. Agents spawned into one work there; otherwise start in the repo. |
+
+## Order of truth
+
+1. User instruction in the current session.
+2. `{{REPO_DIR}}/STATE.md` for live repo state.
+3. `{{REPO_DIR}}/AGENTS.md` for rules and workflow.
+4. This file's plan notes, if any, for workspace-level strategy.
+
+## Skills
+
+- Repo skills: `{{REPO_DIR}}/.agents/skills/` (canonical for repo work).
+- Global skills: `~/.agents/skills/` (all projects). When the same skill exists in both, the repo copy wins for repo work; edit it in the repo.

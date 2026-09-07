@@ -1,0 +1,4 @@
+- `main` moves only through PRs; commit subjects follow `[gh-<issue>: <what changed>]`; one issue = one branch = one PR.
+- No wall-clock time, randomness, or ambient environment reads in production logic; inject clock and seed at the composition edge.
+- Logging is JSON only, one event per line, through the project's single logging path.
+- Non-trivial work gets a dated PLAN.md entry before implementation.

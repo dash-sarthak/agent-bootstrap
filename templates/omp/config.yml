@@ -1,0 +1,4 @@
+memory:
+  backend: local
+autolearn:
+  enabled: true
