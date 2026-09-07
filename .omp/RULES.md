@@ -1,0 +1,4 @@
+- Non-trivial work gets a dated PLAN.md entry before implementation; entries are append-only after the session closes.
+- No wall-clock time, randomness, ambient environment reads, or network in the generator's output path; output depends only on CLI args and templates.
+- Generated files follow the AGENTS.md convention and never overwrite existing files; conflicts refuse with exit 2.
+- Tests before implementation; goldens pin byte-identical output.
